@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct sharedJournalApp: App {
+struct diaryApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
