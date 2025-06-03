@@ -11,6 +11,8 @@ import PhotosUI
 struct DiaryEntry: Identifiable {
     let id = UUID()
     let date: Date
+    let username: String
+    let profileImage: Image
     let content: String
     let images: [Data]
 }
@@ -19,7 +21,12 @@ class DiaryStore: ObservableObject {
     @Published var entries: [DiaryEntry] = []
 
     func addEntry(content: String, images: [Data]) {
-        let newEntry = DiaryEntry(date: Date(), content: content, images: images)
+        let newEntry = DiaryEntry(
+            date: Date(),
+            username: "longhuynh",
+            profileImage: Image(systemName: "person.crop.circle.fill"),
+            content: content,
+            images: images)
         entries.insert(newEntry, at: 0)
     }
 }
@@ -56,9 +63,20 @@ struct DiaryView: View {
 
                 List(store.entries) { entry in
                     VStack(alignment: .leading) {
-                        Text(entry.date, style: .date)
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 8) {
+                            entry.profileImage
+                                .resizable()
+                                .frame(width: 30, height: 30)
+                                .clipShape(Circle())
+                            
+                            Text(entry.username)
+                                .font(.subheadline)
+                                .bold()
+                            Text("\(entry.date.timeAgo())")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.bottom, 4)
 
                         
 
@@ -120,68 +138,118 @@ struct NewPostPanel: View {
     @Binding var selectedItems: [PhotosPickerItem]
     @Binding var selectedImageData: [Data]
     var onPost: () -> Void
+    
+    @Environment(\.dismiss) var dismiss
 
     var body: some View {
-        NavigationView {
             VStack {
+                
+                // Top title and Cancel button
+                HStack {
+                    Button("Cancel") {
+                        newEntryText = ""
+                        selectedItems = []
+                        selectedImageData = []
+                        dismiss()
+                    }
+                    .foregroundColor(.blue)
+
+                    Spacer()
+
+                    Text("New Diary")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    // Empty to center the title visually
+                    Spacer().frame(width: 60)
+                }
+                .padding(.horizontal)
+                
                 TextEditor(text: $newEntryText)
                     .frame(height: 150)
-                    .border(Color.gray)
-                    .padding()
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack {
-                        ForEach(selectedImageData, id: \.self) { data in
-                            if let uiImage = UIImage(data: data) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 100, height: 100)
-                                    .clipped()
-                                    .cornerRadius(8)
-                            }
-                        }
-                    }
                     .padding(.horizontal)
+
+                if !selectedImageData.isEmpty{
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack {
+                            ForEach(selectedImageData, id: \.self) { data in
+                                if let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 100, height: 100)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
                 }
 
-                PhotosPicker(
-                    selection: $selectedItems,
-                    matching: .images,
-                    photoLibrary: .shared()
-                ) {
-                    Label("Select Photos", systemImage: "photo.on.rectangle")
-                }
-                .onChange(of: selectedItems) { newItems in
-                    Task {
-                        selectedImageData = []
-                        for item in newItems {
-                            if let data = try? await item.loadTransferable(type: Data.self) {
-                                selectedImageData.append(data)
+                HStack {
+                    PhotosPicker(
+                        selection: $selectedItems,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        Label("Select Photos", systemImage: "photo.on.rectangle")
+                    }
+                    .onChange(of: selectedItems) { newItems in
+                        Task {
+                            selectedImageData = []
+                            for item in newItems {
+                                if let data = try? await item.loadTransferable(type: Data.self) {
+                                    selectedImageData.append(data)
+                                }
                             }
                         }
                     }
+                    
+                    Spacer()
+                    
+                    Button("Post") {
+                        onPost()
+                    }
+                    .disabled(newEntryText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .buttonStyle(.borderedProminent)
                 }
-                .padding()
-
-                Button("Post") {
-                    onPost()
-                }
-                .disabled(newEntryText.trimmingCharacters(in: .whitespaces).isEmpty)
-                .buttonStyle(.borderedProminent)
-                .padding(.bottom)
+                .padding(.horizontal)
+                
+                Spacer()
             }
-            .navigationTitle("New Entry")
+            .padding(.top)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         newEntryText = ""
                         selectedItems = []
                         selectedImageData = []
-                        UIApplication.shared.windows.first?.rootViewController?.dismiss(animated: true)
+                        dismiss()
                     }
                 }
             }
+    }
+}
+
+
+extension Date {
+    func timeAgo() -> String {
+        let seconds = Int(Date().timeIntervalSince(self))
+        let minutes = seconds / 60
+        let hours = minutes / 60
+        let days = hours / 24
+
+        if seconds < 60 {
+            return "just now"
+        } else if minutes < 60 {
+            return "\(minutes)m"
+        } else if hours < 24 {
+            return "\(hours)h"
+        } else {
+            return "\(days)d"
         }
     }
 }
