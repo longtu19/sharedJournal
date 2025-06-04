@@ -15,6 +15,9 @@ struct DiaryEntry: Identifiable {
     let profileImage: Image
     let content: String
     let images: [Data]
+    var comments: [Comment] = []
+    var reactions: [String: Int] = [:] // e.g. ["❤️": 2, "😂": 1]
+    var userReaction: String? = nil
 }
 
 class DiaryStore: ObservableObject {
@@ -26,7 +29,9 @@ class DiaryStore: ObservableObject {
             username: "longhuynh",
             profileImage: Image(systemName: "person.crop.circle.fill"),
             content: content,
-            images: images)
+            images: images,
+            comments: []
+        )
         entries.insert(newEntry, at: 0)
     }
 }
@@ -39,9 +44,15 @@ struct DiaryView: View {
     @State private var newEntryText = ""
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var selectedImageData: [Data] = []
+    @State private var selectedCommentingEntryID: UUID? = nil
+    @State private var newCommentText: String = ""
+    @FocusState private var isCommentFocused: Bool
+    
+    @State private var selectedEntry: Binding<DiaryEntry>? = nil
+
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(alignment: .leading) {
                 Button(action: {
                     showNewPost = true
@@ -58,53 +69,40 @@ struct DiaryView: View {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(Color.gray.opacity(0.4))
                     )
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top)
                 }
-
-                List(store.entries) { entry in
-                    VStack(alignment: .leading) {
-                        HStack(spacing: 8) {
-                            entry.profileImage
-                                .resizable()
-                                .frame(width: 30, height: 30)
-                                .clipShape(Circle())
-                            
-                            Text(entry.username)
-                                .font(.subheadline)
-                                .bold()
-                            Text("\(entry.date.timeAgo())")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        .padding(.bottom, 4)
-
-                        
-
-                        // Show photos horizontally (if any)
-                        if !entry.images.isEmpty {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 10) {
-                                    ForEach(entry.images, id: \.self) { data in
-                                        if let uiImage = UIImage(data: data) {
-                                            Image(uiImage: uiImage)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 120, height: 120)
-                                                .clipped()
-                                                .cornerRadius(8)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 4)
+                
+                ScrollView {
+                    LazyVStack(alignment: .center, spacing: 16) {
+                        ForEach($store.entries) { $entry in
+                            DiaryPostView(entry: $entry,
+                                          isCommenting: selectedCommentingEntryID == entry.id,
+                                          newCommentText: $newCommentText,
+                                          onPostComment: {
+                                selectedCommentingEntryID = nil
+                                newCommentText = ""
+                            },
+                                          onTapComment: {
+                                selectedEntry = $entry
                             }
+                            )
+                            .padding(.horizontal)
                         }
-                        
-                        Text(entry.content)
                     }
-                    .padding(.vertical, 6)
+                    .padding(.bottom)
                 }
+
             }
             .navigationTitle("Our Diary")
+            .navigationDestination(isPresented: Binding(
+                get: { selectedEntry != nil },
+                set: { if !$0 { selectedEntry = nil } }
+            )) {
+                if let entryBinding = selectedEntry {
+                    DiaryDetailView(entry: entryBinding, newCommentText: $newCommentText)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
@@ -253,4 +251,300 @@ extension Date {
         }
     }
 }
+
+struct Comment: Identifiable {
+    let id = UUID()
+    let username: String
+    let profileImage: Image
+    let content: String
+    let timestamp: Date
+}
+
+
+struct DiaryPostView: View {
+    @Binding var entry: DiaryEntry
+    var isCommenting: Bool
+    @Binding var newCommentText: String
+    var onPostComment: () -> Void
+    var onTapComment: () -> Void
+
+    @FocusState private var isCommentFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            // Header
+            HStack(spacing: 8) {
+                entry.profileImage
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+
+                Text(entry.username)
+                    .font(.subheadline)
+                    .bold()
+
+                Text("\(entry.date.timeAgo())")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            .padding(.bottom, 4)
+
+            // Images
+            if !entry.images.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(entry.images, id: \.self) { data in
+                            if let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 120, height: 120)
+                                    .clipped()
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            // Content
+            Text(entry.content)
+
+            // Reactions
+            HStack(spacing: 20) {
+                Menu {
+                    ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
+                        Button {
+                            entry.userReaction = emoji
+                            entry.reactions[emoji, default: 0] += 1
+                        } label: {
+                            Text(emoji)
+                        }
+                    }
+                } label: {
+                    Label(entry.userReaction ?? "❤️", systemImage: "heart")
+                        .labelStyle(.iconOnly)
+                        .font(.title3)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                Button {
+                    onTapComment()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.right")
+                            .font(.title3)
+                        if !entry.comments.isEmpty {
+                            Text("\(entry.comments.count)")
+                                .font(.caption)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                if !entry.reactions.isEmpty {
+                    Text(entry.reactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding(.top, 6)
+
+            // Comment input
+//            if isCommenting {
+//                VStack(alignment: .leading, spacing: 8) {
+//                    TextEditor(text: $newCommentText)
+//                        .frame(height: 60)
+//                        .padding(8)
+//                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.4)))
+//                        .focused($isCommentFocused)
+//                        .onAppear {
+//                            isCommentFocused = true
+//                        }
+//
+//                    HStack {
+//                        Spacer()
+//                        Button("Post") {
+//                            if !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+//                                let comment = Comment(
+//                                    username: "you",
+//                                    profileImage: Image(systemName: "person.fill"),
+//                                    content: newCommentText,
+//                                    timestamp: Date()
+//                                )
+//                                entry.comments.append(comment)
+//                                onPostComment()
+//                            }
+//                        }
+//                        .buttonStyle(.borderedProminent)
+//                    }
+//                }
+//                .padding(.vertical, 6)
+//            }
+
+            
+
+        }
+        .padding(.top, 8)
+    }
+}
+
+struct DiaryDetailView: View {
+    @Binding var entry: DiaryEntry
+    @Binding var newCommentText: String
+    @Environment(\.dismiss) var dismiss
+    @FocusState private var isCommentFocused: Bool
+    
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                // Reuse existing header/photo/content UI
+                DiaryPostHeader(entry: entry)
+
+                if !entry.comments.isEmpty {
+                    Divider()
+                    ForEach(entry.comments) { comment in
+                        HStack(alignment: .top, spacing: 10) {
+                            comment.profileImage
+                                .resizable()
+                                .frame(width: 24, height: 24)
+                                .clipShape(Circle())
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack {
+                                    Text(comment.username)
+                                        .font(.footnote)
+                                        .bold()
+                                    Text("• \(comment.timestamp.timeAgo())")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                }
+                                Text(comment.content)
+                                    .font(.footnote)
+                            }
+                        }
+                    }
+                }
+
+                // Comment input box
+                 VStack(alignment: .leading, spacing: 8) {
+                     TextEditor(text: $newCommentText)
+                         .frame(height: 60)
+                         .padding(8)
+                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.4)))
+                         .focused($isCommentFocused)
+                         .onAppear {
+                             isCommentFocused = true
+                         }
+
+                     HStack {
+                         Spacer()
+                         Button("Post") {
+                             let trimmed = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
+                             guard !trimmed.isEmpty else { return }
+
+                             // ✅ Update local copy, then assign back
+                             var updatedEntry = entry
+                             let newComment = Comment(
+                                 username: "you",
+                                 profileImage: Image(systemName: "person.fill"),
+                                 content: trimmed,
+                                 timestamp: Date()
+                             )
+                             updatedEntry.comments.append(newComment)
+                             entry = updatedEntry  // <-- 👈 trigger SwiftUI to update
+
+                             newCommentText = ""
+                             isCommentFocused = false
+                         }
+                         .buttonStyle(.borderedProminent)
+                     }
+                 }
+                
+                
+                // Existing Comments
+                if !entry.comments.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Divider()
+                        ForEach(entry.comments) { comment in
+                            HStack(alignment: .top, spacing: 10) {
+                                comment.profileImage
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                                    .clipShape(Circle())
+    
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack {
+                                        Text(comment.username)
+                                            .font(.footnote)
+                                            .bold()
+                                        Text("• \(comment.timestamp.timeAgo())")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
+                                    Text(comment.content)
+                                        .font(.footnote)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.top, 8)
+                }
+            }
+            .padding()
+        }
+        .navigationTitle("Post & Comments")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct DiaryPostHeader: View {
+    var entry: DiaryEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                entry.profileImage
+                    .resizable()
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+
+                Text(entry.username)
+                    .font(.subheadline)
+                    .bold()
+
+                Text("\(entry.date.timeAgo())")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+
+            if !entry.images.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(entry.images, id: \.self) { data in
+                            if let uiImage = UIImage(data: data) {
+                                Image(uiImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 120, height: 120)
+                                    .clipped()
+                                    .cornerRadius(8)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !entry.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(entry.content)
+            }
+        }
+    }
+}
+
+
 
