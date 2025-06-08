@@ -67,11 +67,13 @@ struct DiaryPostDetailView: View {
 
     // reaction picker overlay
     private var reactionPickerOverlay: some View {
-        backgroundOverlay
-            .overlay(
-                reactionPickerContent
-                    .position(reactionAnchor)
-            )
+        GeometryReader { geometry in
+            backgroundOverlay
+                .overlay(
+                    reactionPickerContent
+                        .position(clampedReactionAnchor(from: reactionAnchor, in: geometry.size))
+                )
+        }
     }
 
     // Background overlay
@@ -113,16 +115,16 @@ struct DiaryPostDetailView: View {
         .cornerRadius(10)
         .shadow(radius: 5)
     }
-
+    
     private var reactionsSection: some View {
         HStack(spacing: 20) {
             Label(entry.userReaction ?? "❤️", systemImage: "heart")
                 .labelStyle(.iconOnly)
                 .font(.title3)
-                .onTapGesture {
+                .onLongPressGesture {
                     withAnimation {
                         showReactionPicker = true
-                        reactionAnchor = CGPoint(x: 20, y: 20)
+                        reactionAnchor = CGPoint(x: UIScreen.main.bounds.midX, y: 80)
                     }
                 }
             

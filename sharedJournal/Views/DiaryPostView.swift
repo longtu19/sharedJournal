@@ -16,19 +16,17 @@ struct DiaryPostView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            // Entire post content (including DiaryPostHeader) is tappable for double-tap
             ZStack {
                 VStack(alignment: .leading) {
                     DiaryPostHeader(entry: entry)
                     HStack(spacing: 20) {
-                        // Reaction symbol (single tap to show picker)
                         Label(entry.userReaction ?? "❤️", systemImage: "heart")
                             .labelStyle(.iconOnly)
                             .font(.title3)
-                            .onTapGesture {
+                            .onLongPressGesture {
                                 withAnimation {
                                     showReactionPicker = true
-                                    reactionAnchor = CGPoint(x: 20, y: 20) // Position near the symbol
+                                    reactionAnchor = CGPoint(x: 40, y: 40)
                                 }
                             }
 
@@ -58,7 +56,6 @@ struct DiaryPostView: View {
                     }
                 }
 
-                // Reaction picker overlay (only for single tap on symbol)
                 if showReactionPicker {
                     Color.black.opacity(0.3)
                         .edgesIgnoringSafeArea(.all)
@@ -68,28 +65,30 @@ struct DiaryPostView: View {
                             }
                         }
                         .overlay(
-                            HStack(spacing: 10) {
-                                ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
-                                    Button {
-                                        withAnimation {
-                                            entry.reactions[emoji, default: 0] += 1
-                                            entry.userReaction = emoji
-                                            showReactionPicker = false
+                            GeometryReader { geometry in
+                                HStack(spacing: 10) {
+                                    ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
+                                        Button {
+                                            withAnimation {
+                                                entry.reactions[emoji, default: 0] += 1
+                                                entry.userReaction = emoji
+                                                showReactionPicker = false
+                                            }
+                                        } label: {
+                                            Text(emoji)
+                                                .font(.title3)
+                                                .padding(8)
+                                                .background(Color.white)
+                                                .cornerRadius(8)
                                         }
-                                    } label: {
-                                        Text(emoji)
-                                            .font(.title3)
-                                            .padding(8)
-                                            .background(Color.white)
-                                            .cornerRadius(8)
                                     }
                                 }
+                                .frame(width: 300, height: 60)
+                                .background(Color.white)
+                                .cornerRadius(10)
+                                .shadow(radius: 5)
+                                .position(clampedReactionAnchor(from: reactionAnchor, in: geometry.size))
                             }
-                            .frame(width: 300, height: 60)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .shadow(radius: 5)
-                            .position(reactionAnchor)
                         )
                 }
             }
@@ -97,3 +96,5 @@ struct DiaryPostView: View {
         .padding(.top, 8)
     }
 }
+
+
