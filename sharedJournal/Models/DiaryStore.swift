@@ -13,14 +13,14 @@ class DiaryStore: ObservableObject {
 
     func addEntry(content: String, images: [Data]) {
         let newEntry = DiaryEntry(
-            date: Date(),
+            id: UUID().uuidString, // Unique string ID
             username: "longhuynh",
-            profileImage: Image(systemName: "person.crop.circle.fill"),
+            profileImageName: "person.crop.circle.fill",
             content: content,
             images: images,
-            comments: [],
+            date: Date(),
             reactions: [:],
-            userReaction: nil
+            comments: []
         )
         entries.insert(newEntry, at: 0)
     }

@@ -5,7 +5,7 @@
 //  Created by Long Huynh on 6/4/25.
 //
 
-// Views/DiaryDetailView.swift
+// Views/DiaryPostDetailView.swift
 import SwiftUI
 
 struct DiaryPostDetailView: View {
@@ -15,23 +15,126 @@ struct DiaryPostDetailView: View {
     @State private var textEditorHeight: CGFloat = 50
     @FocusState private var isCommentFocused: Bool
     @State private var localComments: [Comment]
+    @State private var localReactions: [String: Int]
+    @State private var showReactionPicker = false
+    @State private var reactionAnchor: CGPoint = .zero
 
     init(entry: Binding<DiaryEntry>) {
         self._entry = entry
         self._localComments = State(initialValue: entry.wrappedValue.comments)
+        self._localReactions = State(initialValue: entry.wrappedValue.reactions)
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                DiaryPostHeader(entry: entry)
-                commentsSection
-                commentInputSection
+                contentView
             }
             .padding()
         }
         .navigationTitle("Post & Comments")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: entry) { newEntry in
+            localComments = newEntry.comments
+            localReactions = newEntry.reactions
+        }
+    }
+
+    private var contentView: some View {
+        ZStack {
+            VStack(alignment: .leading) {
+                DiaryPostHeader(entry: entry)
+                reactionsSection
+                commentsSection
+                commentInputSection
+            }
+            .onTapGesture(count: 2) {
+                withAnimation {
+                    localReactions["❤️", default: 0] += 1
+                    var updatedEntry = entry
+                    updatedEntry.reactions = localReactions
+                    updatedEntry.userReaction = "❤️"
+                    entry = updatedEntry
+                    print("Double-tap: Updated reactions: \(entry.reactions)")
+                }
+            }
+
+            if showReactionPicker {
+                reactionPickerOverlay
+            }
+        }
+    }
+
+    // reaction picker overlay
+    private var reactionPickerOverlay: some View {
+        backgroundOverlay
+            .overlay(
+                reactionPickerContent
+                    .position(reactionAnchor)
+            )
+    }
+
+    // Background overlay
+    private var backgroundOverlay: some View {
+        Color.black.opacity(0.3)
+            .edgesIgnoringSafeArea(.all)
+            .onTapGesture {
+                withAnimation {
+                    showReactionPicker = false
+                }
+            }
+    }
+
+    // Reaction picker content
+    private var reactionPickerContent: some View {
+        HStack(spacing: 10) {
+            ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
+                Button {
+                    withAnimation {
+                        localReactions[emoji, default: 0] += 1
+                        var updatedEntry = entry
+                        updatedEntry.reactions = localReactions
+                        updatedEntry.userReaction = emoji
+                        entry = updatedEntry
+                        showReactionPicker = false
+                        print("Picker: Updated reactions: \(entry.reactions)")
+                    }
+                } label: {
+                    Text(emoji)
+                        .font(.title3)
+                        .padding(8)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .frame(width: 300, height: 60)
+        .background(Color.white)
+        .cornerRadius(10)
+        .shadow(radius: 5)
+    }
+
+    private var reactionsSection: some View {
+        HStack(spacing: 20) {
+            Label(entry.userReaction ?? "❤️", systemImage: "heart")
+                .labelStyle(.iconOnly)
+                .font(.title3)
+                .onTapGesture {
+                    withAnimation {
+                        showReactionPicker = true
+                        reactionAnchor = CGPoint(x: 20, y: 20)
+                    }
+                }
+
+            Spacer()
+
+            if !localReactions.isEmpty {
+                Text(localReactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding(.top, 6)
     }
 
     private var commentsSection: some View {
@@ -77,6 +180,7 @@ struct DiaryPostDetailView: View {
                         textEditorHeight = max(50, size.height + 8)
                     }
             }
+            .padding(.top)
             .onAppear {
                 isCommentFocused = true
             }
@@ -89,13 +193,15 @@ struct DiaryPostDetailView: View {
 
                     let newComment = Comment(
                         username: "you",
-                        profileImage: Image(systemName: "person.fill"),
+                        profileImageName: "person.crop.circle.fill",
                         content: trimmed,
                         timestamp: Date()
                     )
 
                     localComments.append(newComment)
-                    entry.comments = localComments
+                    var updatedEntry = entry
+                    updatedEntry.comments = localComments
+                    entry = updatedEntry
                     newCommentText = ""
                     isCommentFocused = false
                 }
