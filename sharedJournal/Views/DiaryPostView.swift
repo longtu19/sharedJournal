@@ -49,12 +49,6 @@ struct DiaryPostView: View {
                     }
                     .padding(.top, 6)
                 }
-                .onTapGesture(count: 2) {
-                    withAnimation {
-                        entry.reactions["❤️", default: 0] += 1
-                        entry.userReaction = "❤️"
-                    }
-                }
 
                 if showReactionPicker {
                     Color.black.opacity(0.3)
@@ -90,6 +84,13 @@ struct DiaryPostView: View {
                                 .position(clampedReactionAnchor(from: reactionAnchor, in: geometry.size))
                             }
                         )
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) {
+                withAnimation {
+                    entry.reactions["❤️", default: 0] += 1
+                    entry.userReaction = "❤️"
                 }
             }
         }

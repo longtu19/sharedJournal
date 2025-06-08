@@ -48,19 +48,19 @@ struct DiaryPostDetailView: View {
                 commentsSection
                 commentInputSection
             }
-            .onTapGesture(count: 2) {
-                withAnimation {
-                    localReactions["❤️", default: 0] += 1
-                    var updatedEntry = entry
-                    updatedEntry.reactions = localReactions
-                    updatedEntry.userReaction = "❤️"
-                    entry = updatedEntry
-                    print("Double-tap: Updated reactions: \(entry.reactions)")
-                }
-            }
 
             if showReactionPicker {
                 reactionPickerOverlay
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            withAnimation {
+                localReactions["❤️", default: 0] += 1
+                var updatedEntry = entry
+                updatedEntry.reactions = localReactions
+                updatedEntry.userReaction = "❤️"
+                entry = updatedEntry
             }
         }
     }
