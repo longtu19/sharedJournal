@@ -125,6 +125,16 @@ struct DiaryPostDetailView: View {
                         reactionAnchor = CGPoint(x: 20, y: 20)
                     }
                 }
+            
+            HStack(spacing: 4) {
+                Image(systemName: "bubble.left")
+                    .font(.title3)
+                if localComments.count > 0 {
+                    Text("\(localComments.count)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
 
             Spacer()
 
@@ -138,6 +148,7 @@ struct DiaryPostDetailView: View {
     }
 
     private var commentsSection: some View {
+        
         Group {
             if !localComments.isEmpty {
                 Divider()
