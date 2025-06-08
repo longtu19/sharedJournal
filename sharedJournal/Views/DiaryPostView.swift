@@ -13,6 +13,7 @@ struct DiaryPostView: View {
     var onTapComment: () -> Void
     @State private var showReactionPicker = false
     @State private var reactionAnchor: CGPoint = .zero
+    @State private var didLongPress = false
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -20,15 +21,36 @@ struct DiaryPostView: View {
                 VStack(alignment: .leading) {
                     DiaryPostHeader(entry: entry)
                     HStack(spacing: 20) {
-                        Label(entry.userReaction ?? "❤️", systemImage: "heart")
-                            .labelStyle(.iconOnly)
-                            .font(.title3)
-                            .onLongPressGesture {
-                                withAnimation {
-                                    showReactionPicker = true
-                                    reactionAnchor = CGPoint(x: 40, y: 40)
-                                }
+                        VStack {
+                            GeometryReader { geo in
+                                Label("", systemImage: "heart")
+                                    .labelStyle(.iconOnly)
+                                    .font(.title3)
+                                    .foregroundColor(.blue)
+                                    .padding(4)
+                                    .contentShape(Rectangle()) 
+                                    .onTapGesture {
+                                        if !didLongPress {
+                                            entry.reactions["❤️", default: 0] += 1
+                                            entry.userReaction = "❤️"
+                                        }
+                                        didLongPress = false // reset
+                                    }
+                                    .simultaneousGesture(
+                                        LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+                                            let global = geo.frame(in: .global)
+                                            reactionAnchor = CGPoint(x: global.midX, y: global.maxY + 4)
+                                            withAnimation {
+                                                showReactionPicker = true
+                                            }
+                                            didLongPress = true // suppress tap
+                                        }
+                                    )
                             }
+                        }
+                        .frame(width: 25, height: 32) // Match icon height
+                        .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
+
 
                         Button(action: onTapComment) {
                             HStack(spacing: 4) {
@@ -60,7 +82,7 @@ struct DiaryPostView: View {
                         }
                         .overlay(
                             GeometryReader { geometry in
-                                HStack(spacing: 10) {
+                                HStack(spacing: 2) {
                                     ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
                                         Button {
                                             withAnimation {
@@ -71,13 +93,13 @@ struct DiaryPostView: View {
                                         } label: {
                                             Text(emoji)
                                                 .font(.title3)
-                                                .padding(8)
+                                                .padding(4)
                                                 .background(Color.white)
                                                 .cornerRadius(8)
                                         }
                                     }
                                 }
-                                .frame(width: 300, height: 60)
+                                .frame(width: 200, height: 50)
                                 .background(Color.white)
                                 .cornerRadius(10)
                                 .shadow(radius: 5)

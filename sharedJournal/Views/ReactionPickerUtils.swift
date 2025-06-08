@@ -10,11 +10,11 @@ import SwiftUI
 
 extension View {
     func clampedReactionAnchor(from point: CGPoint, in size: CGSize) -> CGPoint {
-        let pickerWidth: CGFloat = 300
-        let pickerHeight: CGFloat = 60
+        let pickerWidth: CGFloat = 200
+        let pickerHeight: CGFloat = 50
 
         let safeX = max(pickerWidth / 2, min(point.x, size.width - pickerWidth / 2))
-        let safeY = min(point.y + 40, size.height - pickerHeight)
+        let safeY = min(point.y + 36, size.height - pickerHeight)
 
         return CGPoint(x: safeX, y: safeY)
     }
