@@ -5,8 +5,6 @@
 //  Created by Long Huynh on 6/4/25.
 //
 
-// Models/DiaryEntry.swift
-import SwiftUI
 
 // Models/DiaryEntry.swift
 import SwiftUI
@@ -76,5 +74,15 @@ struct Comment: Identifiable, Codable, Equatable {
                lhs.profileImageName == rhs.profileImageName &&
                lhs.content == rhs.content &&
                lhs.timestamp == rhs.timestamp
+    }
+}
+
+
+class DiaryEntryModel: ObservableObject, Identifiable {
+    @Published var entry: DiaryEntry
+    var id: String { entry.id }
+
+    init(entry: DiaryEntry) {
+        self.entry = entry
     }
 }

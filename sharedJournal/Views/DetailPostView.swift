@@ -8,21 +8,20 @@
 // Views/DiaryPostDetailView.swift
 import SwiftUI
 
-struct DiaryPostDetailView: View {
-    @Binding var entry: DiaryEntry
+struct DetailPostView: View {
+    @ObservedObject var model: DiaryEntryModel
+    
+
+
     @Environment(\.dismiss) private var dismiss
     @State private var newCommentText: String = ""
     @State private var textEditorHeight: CGFloat = 50
     @FocusState private var isCommentFocused: Bool
-    @State private var localComments: [Comment]
-    @State private var localReactions: [String: Int]
     @State private var showReactionPicker = false
     @State private var reactionAnchor: CGPoint = .zero
-
-    init(entry: Binding<DiaryEntry>) {
-        self._entry = entry
-        self._localComments = State(initialValue: entry.wrappedValue.comments)
-        self._localReactions = State(initialValue: entry.wrappedValue.reactions)
+    
+    init(model: DiaryEntryModel) {
+        self.model = model
     }
 
     var body: some View {
@@ -34,16 +33,13 @@ struct DiaryPostDetailView: View {
         }
         .navigationTitle("Post & Comments")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: entry) { newEntry in
-            localComments = newEntry.comments
-            localReactions = newEntry.reactions
-        }
+
     }
 
     private var contentView: some View {
         ZStack {
             VStack(alignment: .leading) {
-                DiaryPostHeader(entry: entry)
+                DiaryPostHeader(entry: model.entry)
                 reactionsSection
                 commentsSection
                 commentInputSection
@@ -56,11 +52,8 @@ struct DiaryPostDetailView: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             withAnimation {
-                localReactions["❤️", default: 0] += 1
-                var updatedEntry = entry
-                updatedEntry.reactions = localReactions
-                updatedEntry.userReaction = "❤️"
-                entry = updatedEntry
+                model.entry.reactions["❤️", default: 0] += 1
+                model.entry.userReaction = "❤️"
             }
         }
     }
@@ -92,15 +85,9 @@ struct DiaryPostDetailView: View {
         HStack(spacing: 10) {
             ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
                 Button {
-                    withAnimation {
-                        localReactions[emoji, default: 0] += 1
-                        var updatedEntry = entry
-                        updatedEntry.reactions = localReactions
-                        updatedEntry.userReaction = emoji
-                        entry = updatedEntry
-                        showReactionPicker = false
-                        print("Picker: Updated reactions: \(entry.reactions)")
-                    }
+                    model.entry.reactions[emoji, default: 0] += 1
+                    model.entry.userReaction = emoji
+                    withAnimation { showReactionPicker = false }
                 } label: {
                     Text(emoji)
                         .font(.title3)
@@ -118,21 +105,24 @@ struct DiaryPostDetailView: View {
     
     private var reactionsSection: some View {
         HStack(spacing: 20) {
-            Label(entry.userReaction ?? "❤️", systemImage: "heart")
-                .labelStyle(.iconOnly)
-                .font(.title3)
-                .onLongPressGesture {
-                    withAnimation {
-                        showReactionPicker = true
-                        reactionAnchor = CGPoint(x: UIScreen.main.bounds.midX, y: 80)
-                    }
+            HeartButton(
+                userReaction: $model.entry.userReaction,
+                reactions: $model.entry.reactions,
+                onShowPicker: { point in
+                    self.reactionAnchor = point
+                    withAnimation { showReactionPicker = true }
+                },
+                onHidePicker: {
+                    withAnimation { showReactionPicker = false }
                 }
+            )
+
             
             HStack(spacing: 4) {
                 Image(systemName: "bubble.left")
                     .font(.title3)
-                if localComments.count > 0 {
-                    Text("\(localComments.count)")
+                if model.entry.comments.count > 0 {
+                    Text("\(model.entry.comments.count)")
                         .font(.caption)
                         .foregroundColor(.gray)
                 }
@@ -140,8 +130,8 @@ struct DiaryPostDetailView: View {
 
             Spacer()
 
-            if !localReactions.isEmpty {
-                Text(localReactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
+            if !model.entry.reactions.isEmpty {
+                Text(model.entry.reactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
                     .font(.caption)
                     .foregroundColor(.gray)
             }
@@ -152,9 +142,9 @@ struct DiaryPostDetailView: View {
     private var commentsSection: some View {
         
         Group {
-            if !localComments.isEmpty {
+            if !model.entry.comments.isEmpty {
                 Divider()
-                ForEach(localComments) { comment in
+                ForEach(model.entry.comments) { comment in
                     CommentRow(comment: comment)
                 }
             }
@@ -211,10 +201,7 @@ struct DiaryPostDetailView: View {
                         timestamp: Date()
                     )
 
-                    localComments.append(newComment)
-                    var updatedEntry = entry
-                    updatedEntry.comments = localComments
-                    entry = updatedEntry
+                    model.entry.comments.append(newComment)
                     newCommentText = ""
                     isCommentFocused = false
                 }

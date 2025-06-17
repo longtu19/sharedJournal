@@ -9,7 +9,7 @@
 import SwiftUI
 
 class DiaryStore: ObservableObject {
-    @Published var entries: [DiaryEntry] = []
+    @Published var entryModels: [DiaryEntryModel] = []
 
     func addEntry(content: String, images: [Data]) {
         let newEntry = DiaryEntry(
@@ -22,6 +22,8 @@ class DiaryStore: ObservableObject {
             reactions: [:],
             comments: []
         )
-        entries.insert(newEntry, at: 0)
+        
+        let model = DiaryEntryModel(entry: newEntry)
+        entryModels.insert(model, at: 0)
     }
 }

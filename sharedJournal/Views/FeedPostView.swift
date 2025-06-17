@@ -8,8 +8,8 @@
 // Views/DiaryPostView.swift
 import SwiftUI
 
-struct DiaryPostView: View {
-    @Binding var entry: DiaryEntry
+struct FeedPostView: View {
+    @ObservedObject var model: DiaryEntryModel
     var onTapComment: () -> Void
     @State private var showReactionPicker = false
     @State private var reactionAnchor: CGPoint = .zero
@@ -19,56 +19,40 @@ struct DiaryPostView: View {
         VStack(alignment: .leading) {
             ZStack {
                 VStack(alignment: .leading) {
-                    DiaryPostHeader(entry: entry)
+                    DiaryPostHeader(entry: model.entry)
                     HStack(spacing: 20) {
                         VStack {
-                            GeometryReader { geo in
-                                Label("", systemImage: "heart")
-                                    .labelStyle(.iconOnly)
-                                    .font(.title3)
-                                    .foregroundColor(.blue)
-                                    .padding(4)
-                                    .contentShape(Rectangle()) 
-                                    .onTapGesture {
-                                        if !didLongPress {
-                                            entry.reactions["❤️", default: 0] += 1
-                                            entry.userReaction = "❤️"
-                                        }
-                                        didLongPress = false // reset
-                                    }
-                                    .simultaneousGesture(
-                                        LongPressGesture(minimumDuration: 0.4).onEnded { _ in
-                                            let global = geo.frame(in: .global)
-                                            reactionAnchor = CGPoint(x: global.midX, y: global.maxY + 4)
-                                            withAnimation {
-                                                showReactionPicker = true
-                                            }
-                                            didLongPress = true // suppress tap
-                                        }
-                                    )
-                            }
+                            HeartButton(
+                                userReaction: $model.entry.userReaction,
+                                reactions: $model.entry.reactions,
+                                onShowPicker: { point in
+                                    self.reactionAnchor = point
+                                    withAnimation { showReactionPicker = true }
+                                },
+                                onHidePicker: {
+                                    withAnimation { showReactionPicker = false }
+                                }
+                            )
                         }
-                        .frame(width: 25, height: 32) // Match icon height
-                        .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
-
 
                         Button(action: onTapComment) {
                             HStack(spacing: 4) {
                                 Image(systemName: "bubble.right").font(.title3)
-                                if !entry.comments.isEmpty {
-                                    Text("\(entry.comments.count)").font(.caption)
+                                if !model.entry.comments.isEmpty {
+                                    Text("\(model.entry.comments.count)").font(.caption)
                                 }
                             }
                         }
 
                         Spacer()
 
-                        if !entry.reactions.isEmpty {
-                            Text(entry.reactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
+                        if !model.entry.reactions.isEmpty {
+                            Text(model.entry.reactions.map { "\($0.key) \($0.value)" }.joined(separator: "  "))
                                 .font(.caption)
                                 .foregroundColor(.gray)
                         }
                     }
+
                     .padding(.top, 6)
                 }
 
@@ -86,8 +70,8 @@ struct DiaryPostView: View {
                                     ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
                                         Button {
                                             withAnimation {
-                                                entry.reactions[emoji, default: 0] += 1
-                                                entry.userReaction = emoji
+                                                model.entry.reactions[emoji, default: 0] += 1
+                                                model.entry.userReaction = emoji
                                                 showReactionPicker = false
                                             }
                                         } label: {
@@ -111,8 +95,8 @@ struct DiaryPostView: View {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) {
                 withAnimation {
-                    entry.reactions["❤️", default: 0] += 1
-                    entry.userReaction = "❤️"
+                    model.entry.reactions["❤️", default: 0] += 1
+                    model.entry.userReaction = "❤️"
                 }
             }
         }
