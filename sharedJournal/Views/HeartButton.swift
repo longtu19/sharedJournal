@@ -32,8 +32,9 @@ struct HeartButton: View {
                 }
                 .simultaneousGesture(
                     LongPressGesture(minimumDuration: 0.4).onEnded { _ in
-                        let global = geo.frame(in: .global)
-                        onShowPicker(CGPoint(x: global.midX, y: global.maxY + 4))
+                        let local = geo.frame(in: .named("ReactionSpace"))
+                        let spacing: CGFloat = 16
+                        onShowPicker(CGPoint(x: local.midX, y: local.maxY + spacing))
                         didLongPress = true
                     }
                 )

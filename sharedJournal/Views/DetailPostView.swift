@@ -1,11 +1,10 @@
 //
-//  DiaryPostDetailView.swift
 //  sharedJournal
 //
 //  Created by Long Huynh on 6/4/25.
 //
 
-// Views/DiaryPostDetailView.swift
+// Views/DetailPostView.swift
 import SwiftUI
 
 struct DetailPostView: View {
@@ -49,6 +48,7 @@ struct DetailPostView: View {
                 reactionPickerOverlay
             }
         }
+        .coordinateSpace(name: "ReactionSpace")
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             withAnimation {
@@ -72,7 +72,6 @@ struct DetailPostView: View {
     // Background overlay
     private var backgroundOverlay: some View {
         Color.black.opacity(0.3)
-            .edgesIgnoringSafeArea(.all)
             .onTapGesture {
                 withAnimation {
                     showReactionPicker = false
@@ -82,7 +81,7 @@ struct DetailPostView: View {
 
     // Reaction picker content
     private var reactionPickerContent: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 2) {
             ForEach(["❤️", "😂", "😢", "🔥", "👍"], id: \.self) { emoji in
                 Button {
                     model.entry.reactions[emoji, default: 0] += 1
@@ -91,13 +90,13 @@ struct DetailPostView: View {
                 } label: {
                     Text(emoji)
                         .font(.title3)
-                        .padding(8)
+                        .padding(4)
                         .background(Color.white)
                         .cornerRadius(8)
                 }
             }
         }
-        .frame(width: 300, height: 60)
+        .frame(width: 200, height: 50)
         .background(Color.white)
         .cornerRadius(10)
         .shadow(radius: 5)

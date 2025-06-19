@@ -14,7 +14,7 @@ extension View {
         let pickerHeight: CGFloat = 50
 
         let safeX = max(pickerWidth / 2, min(point.x, size.width - pickerWidth / 2))
-        let safeY = min(point.y + 36, size.height - pickerHeight)
+        let safeY = max(point.y, pickerHeight / 2)
 
         return CGPoint(x: safeX, y: safeY)
     }
